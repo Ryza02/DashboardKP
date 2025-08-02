@@ -2,13 +2,6 @@
 
 import { useTheme } from "./theme-provider"
 
-const userData = [
-  { label: "Users", value: "32,984", color: "bg-blue-500" },
-  { label: "Clicks", value: "2.42M", color: "bg-cyan-500" },
-  { label: "Sales", value: "2,400$", color: "bg-red-500" },
-  { label: "Items", value: "320", color: "bg-blue-600" },
-]
-
 export default function ActiveUsers() {
   const { theme } = useTheme()
 
@@ -23,7 +16,6 @@ export default function ActiveUsers() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h3 className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Active Users</h3>
-          <p className="text-green-400 text-sm">(+23) than last week</p>
         </div>
       </div>
 
@@ -37,21 +29,6 @@ export default function ActiveUsers() {
           />
         ))}
       </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {userData.map((item, index) => (
-          <div key={index} className="flex items-center space-x-2 md:space-x-3">
-            <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full ${item.color}`} />
-            <div>
-              <p className={`text-xs ${theme === "dark" ? "text-white/60" : "text-gray-500"}`}>{item.label}</p>
-              <p className={`font-semibold text-sm md:text-base ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                {item.value}
-              </p>
-            </div>
-          </div>
-        ))}
       </div>
-    </div>
   )
 }

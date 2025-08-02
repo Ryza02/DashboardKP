@@ -1,20 +1,25 @@
-"use client"
+"use client";
 
 import { useTheme } from "@/components/theme-provider"
 import { useState } from "react"
 import Sidebar from "@/components/sidebar"
 import Header from "@/components/header"
 import StatsCards from "@/components/stats-cards"
-import WelcomeCard from "@/components/welcome-card"
 import LowestAvailabilityChart from "@/components/lowest-site"
-import SalesOverview from "@/components/sales-overview"
+import TrafficOverview from "@/components/traffic-overview"
 import ActiveUsers from "@/components/active-users"
-import FilterDropdown from "@/components/filter-dropdown"
 import TopSiteTrafficChart from "@/components/top-site-traffic"
+import Traffic from "@/components/traffic"
+import Filter from "@/components/filter"
+
 
 export default function Dashboard() {
   const { theme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+   function handleFilterChange(params: any) {
+    console.log("Filter params:", params)
+  }
 
   return (
     <div className={`
@@ -41,13 +46,15 @@ export default function Dashboard() {
             {/* Stat Cards */}
             <StatsCards />
 
-            {/* Middle Section */}
+            <div className="mb-2 flex justify-end">
+              <Filter onSearch={handleFilterChange} />
+            </div>
+            
+
+            {/* Layer 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1 flex flex-col gap-6">
-                <WelcomeCard />
-                <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
-                  <FilterDropdown onSearch={params => { console.log(params) }} />
-                </div>
+              <div className="lg:col-span-1 glass rounded-2xl p-4 shadow-md border border-[#e5e8ee] flex flex-col justify-center">
+                <ActiveUsers />
               </div>
               <div className="lg:col-span-1 glass rounded-2xl p-4 shadow-md border border-[#e5e8ee] flex flex-col justify-center">
                 <TopSiteTrafficChart />
@@ -57,10 +64,25 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Bottom Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* layer 2 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+               <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
+                <Traffic />
+              </div>
               <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
-                <SalesOverview />
+                <TrafficOverview />
+              </div>
+              <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
+                <ActiveUsers />
+              </div>
+            </div>
+            {/* layer3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+               <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
+                <Traffic />
+              </div>
+              <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
+                <ActiveUsers/>
               </div>
               <div className="glass rounded-2xl p-4 shadow-md border border-[#e5e8ee]">
                 <ActiveUsers />
