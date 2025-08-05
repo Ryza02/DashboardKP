@@ -27,8 +27,7 @@ export default function TopSiteTrafficChart() {
 
   return (
     <div className={`
-      rounded-2xl p-4 md:p-6 transition-all duration-300 border
-      ${theme === "dark" ? "bg-white/10 border-white/20" : "bg-white/80 border-gray-200"}
+      rounded-2xl p-4 md:p-6 transition-all duration-300 border bg-white/10 border-white/20
       shadow-lg hover:shadow-2xl hover:scale-[1.03] cursor-pointer
     `}>
       <div className={`font-semibold text-lg mb-4 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>

@@ -1,26 +1,77 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef } from "react"
-import Papa from "papaparse"
-import { useTheme } from "./theme-provider"
+import { useEffect, useState } from "react";
+import Select from "react-select";
+import { useTheme } from "./theme-provider";
+
+// Custom style react-select
+const customSelectStyles = (theme: "dark" | "light") => ({
+  control: (base: any, state: any) => ({
+    ...base,
+    background: theme === "dark" ? "#232336" : "#fff",
+    borderColor: state.isFocused ? "#ad6eff" : "#232336",
+    boxShadow: state.isFocused ? "0 0 0 2px #ad6eff55" : undefined,
+    color: theme === "dark" ? "#fff" : "#232336",
+    minHeight: 44,
+  }),
+  menu: (base: any) => ({
+    ...base,
+    background: theme === "dark" ? "#232336" : "#fff",
+    borderRadius: 12,
+    boxShadow: "0 6px 32px 0 rgba(45,32,94,0.14)",
+    zIndex: 50,
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    background: state.isSelected
+      ? (theme === "dark" ? "#ad6eff" : "#e4d6ff")
+      : state.isFocused
+      ? (theme === "dark" ? "#2e254c" : "#f3f0ff")
+      : "none",
+    color: state.isSelected
+      ? (theme === "dark" ? "#232336" : "#5a23a1")
+      : (theme === "dark" ? "#fff" : "#232336"),
+    fontWeight: state.isSelected ? "bold" : 500,
+    cursor: "pointer",
+  }),
+  singleValue: (base: any) => ({
+    ...base,
+    color: theme === "dark" ? "#fff" : "#232336",
+  }),
+  placeholder: (base: any) => ({
+    ...base,
+    color: theme === "dark" ? "#b9b7d0" : "#a7a7c0",
+    fontWeight: 400,
+  }),
+});
 
 type DataRow = {
-  id: number
-  date: string
-  enodeb_name: string
-  ioh_4g_total_traffic_gb: number
-  ioh_rrc_connected_user: number
-  ioh_4g_availability_auto: number
-  l_e_rab_abnormrel_tnl: number
-  ioh_last_tti: number
-  site_ide: string
-}
-type Site = { enodeb_name: string; site_ide: string }
+  Date: string;
+  Time: string;
+  "eNodeB Name": string;
+  "Cell FDD TDD Indication": string;
+  "Cell Name": string;
+  "LocalCell Id": string;
+  "eNodeB Function Name": string;
+  Integrity: string;
+  User: number;
+  PRB: number;
+  EUT: number;
+  "TA Meter": number;
+  "Traffic GB": number;
+  CQI: number;
+  "IOH_4G Rank2 %": number;
+  "IOH_4G Cell Availability (%)": number;
+  "UL.Interference.Avg(dBm)": number;
+  "Site ID": string;
+  Sector: string;
+  SA: string;
+};
 
 interface DetailDataCardProps {
-  page: number
-  setPageCount: (count: number) => void
-  setPage: (page: number) => void
+  page: number;
+  setPageCount: (count: number) => void;
+  setPage: (page: number) => void;
 }
 
 export default function DetailDataCard({
@@ -28,122 +79,105 @@ export default function DetailDataCard({
   setPageCount,
   setPage,
 }: DetailDataCardProps) {
-  const { theme } = useTheme()
-  const [rows, setRows] = useState<DataRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [total, setTotal] = useState(0)
-  const [sites, setSites] = useState<Site[]>([])
-  const [selectedSite, setSelectedSite] = useState("")
-  const [dateType, setDateType] = useState("all")
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
-  const [gotoPage, setGotoPage] = useState("")
-  const [showDetail, setShowDetail] = useState<DataRow | null>(null)
-  const [showUploadIdx, setShowUploadIdx] = useState<number | null>(null)
-  const perPage = 20
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const perDataFileRef = useRef<HTMLInputElement[]>([])
+  // HARUS: Panggil useTheme paling atas, biar urutan hook aman
+  const { theme } = useTheme();
 
-  // Fetch data dari API
+  const [rows, setRows] = useState<DataRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+
+  // Dropdown filter state
+  const [siteOptions, setSiteOptions] = useState<{ label: string; value: string }[]>([]);
+  const [sectorOptions, setSectorOptions] = useState<{ label: string; value: string }[]>([]);
+  const [selectedSite, setSelectedSite] = useState<{ label: string; value: string } | null>(null);
+  const [selectedSector, setSelectedSector] = useState<{ label: string; value: string } | null>(null);
+
+  const [range, setRange] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [gotoPage, setGotoPage] = useState("");
+  const [showDetail, setShowDetail] = useState<DataRow | null>(null);
+  const perPage = 20;
+
+  // Data fetching, filter, sync
   useEffect(() => {
-    setLoading(true)
+    setLoading(true);
     const params = new URLSearchParams({
       page: page.toString(),
       perPage: perPage.toString(),
-      site: selectedSite,
-      dateType,
-      ...(dateType === "custom" ? { dateFrom, dateTo } : {}),
-    }).toString()
-    fetch(`/api/detail-data?${params}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setRows(data.rows)
-        setTotal(data.total)
-        setSites(data.sites || [])
-        setLoading(false)
-        setPageCount(Math.ceil(data.total / perPage))
-      })
-  }, [page, selectedSite, dateType, dateFrom, dateTo, setPageCount])
+      range,
+      ...(selectedSector?.value ? { sector: selectedSector.value } : {}),
+      ...(selectedSite?.value ? { site_id: selectedSite.value } : {}),
+      ...(range === "custom" ? { dateFrom, dateTo } : {}),
+    }).toString();
 
-  // Upload CSV (semua data)
-  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    Papa.parse<DataRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setRows(results.data.slice(0, perPage))
-        setPageCount(1)
-        setPage(1)
-      },
-    })
-  }
-
-  // Upload CSV untuk satu data
-  const handleUploadPerData = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    Papa.parse<DataRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.data.length > 0) {
-          const newRows = [...rows]
-          newRows[idx] = results.data[0]
-          setRows(newRows)
-        }
-        setShowUploadIdx(null)
-      },
-    })
-  }
+    fetch(`/api/data?${params}`)
+      .then(res => res.json())
+      .then(data => {
+        setRows(data.rows || []);
+        setTotal(data.total || 0);
+        setPageCount(Math.ceil((data.total || 0) / perPage));
+        setSiteOptions(
+          (data.sites || []).map((s: any) => ({
+            label: `${s.enodeb_name} (${s.site_id})`,
+            value: s.site_id,
+          }))
+        );
+        setSectorOptions(
+          (data.sectors || []).map((s: any) => ({
+            label: s,
+            value: s,
+          }))
+        );
+        setLoading(false);
+      });
+    // eslint-disable-next-line
+  }, [page, selectedSite, selectedSector, range, dateFrom, dateTo, setPageCount]);
 
   // Reset filter
   const resetFilter = () => {
-    setSelectedSite("")
-    setDateType("all")
-    setDateFrom("")
-    setDateTo("")
-    setPage(1)
-  }
+    setSelectedSector(null);
+    setSelectedSite(null);
+    setRange("all");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  };
 
   // Pagination logic
-  const pageCount = Math.max(1, Math.ceil(total / perPage))
-  const visibleButtons = 5
-  let startPage = Math.max(1, page - Math.floor(visibleButtons / 2))
-  let endPage = startPage + visibleButtons - 1
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  const visibleButtons = 5;
+  let startPage = Math.max(1, page - Math.floor(visibleButtons / 2));
+  let endPage = startPage + visibleButtons - 1;
   if (endPage > pageCount) {
-    endPage = pageCount
-    startPage = Math.max(1, endPage - visibleButtons + 1)
+    endPage = pageCount;
+    startPage = Math.max(1, endPage - visibleButtons + 1);
   }
-  const pageNumbers = []
-  for (let i = startPage; i <= endPage; i++) pageNumbers.push(i)
+  const pageNumbers = [];
+  for (let i = startPage; i <= endPage; i++) pageNumbers.push(i);
 
-  // Goto page form
   const handleGotoPage = (e: React.FormEvent) => {
-    e.preventDefault()
-    let n = parseInt(gotoPage)
-    if (isNaN(n)) return
-    if (n < 1) n = 1
-    if (n > pageCount) n = pageCount
-    setPage(n)
-    setGotoPage("")
-  }
+    e.preventDefault();
+    let n = parseInt(gotoPage);
+    if (isNaN(n)) return;
+    if (n < 1) n = 1;
+    if (n > pageCount) n = pageCount;
+    setPage(n);
+    setGotoPage("");
+  };
 
-  // Theme util classes
-  const bgMain =
-    theme === "dark"
-      ? "bg-white/10 backdrop-blur-xl border-white/20"
-      : "bg-white/90 backdrop-blur-xl border-[#e5e8ee]"
-  const textMain = theme === "dark" ? "text-white" : "text-gray-900"
-  const tableBg = theme === "dark" ? "bg-white/10" : "bg-gray-100"
-  const modalBg =
-    theme === "dark"
-      ? "bg-[#18162c] border-white/20"
-      : "bg-white border-gray-200"
+  // Card background color, table style
+  const cardBg = theme === "dark"
+    ? "bg-[#232336] border-[#3e4057] shadow-lg"
+    : "bg-white border-[#e5e8ee] shadow-md";
+  const textMain = theme === "dark" ? "text-white" : "text-gray-900";
+  const tableBg = theme === "dark" ? "bg-[#262740]" : "bg-gray-100";
+  const modalBg = theme === "dark"
+    ? "bg-[#19192a] border-white/20"
+    : "bg-white border-gray-200";
 
   return (
-    <div className={`rounded-2xl mt-8 p-4 md:p-6 border shadow-lg ${bgMain}`}>
+    <div className={`rounded-2xl mt-8 p-4 md:p-6 border ${cardBg} max-w-[1400px] w-full mx-auto`}>
       {/* Detail Modal */}
       {showDetail && (
         <div
@@ -151,7 +185,7 @@ export default function DetailDataCard({
           onClick={() => setShowDetail(null)}
         >
           <div
-            className={`rounded-xl p-6 shadow-xl w-full max-w-lg relative border ${modalBg}`}
+            className={`rounded-xl p-6 shadow-xl w-full max-w-2xl relative border ${modalBg}`}
             onClick={e => e.stopPropagation()}
           >
             <button
@@ -160,105 +194,98 @@ export default function DetailDataCard({
               aria-label="Close"
             >✕</button>
             <div className="text-lg font-bold mb-3 text-purple-700 dark:text-purple-400">Detail Data</div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><b>ID:</b> {showDetail.id}</div>
-              <div><b>Tanggal:</b> {showDetail.date ? new Date(showDetail.date).toLocaleDateString("id-ID") : ""}</div>
-              <div><b>eNodeB Name:</b> {showDetail.enodeb_name}</div>
-              <div><b>Traffic (GB):</b> {showDetail.ioh_4g_total_traffic_gb}</div>
-              <div><b>RRC User:</b> {showDetail.ioh_rrc_connected_user}</div>
-              <div><b>Availability:</b> {showDetail.ioh_4g_availability_auto}</div>
-              <div><b>AbnormRel TNL:</b> {showDetail.l_e_rab_abnormrel_tnl}</div>
-              <div><b>Last TTI:</b> {showDetail.ioh_last_tti}</div>
-              <div><b>Site ID:</b> {showDetail.site_ide}</div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              {Object.entries(showDetail).map(([key, value]) => (
+                <div key={key}>
+                  <b>{key}:</b>{" "}
+                  {key === "Date"
+                    ? value
+                      ? new Date(value as string).toLocaleDateString("id-ID")
+                      : ""
+                    : value?.toString()}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <div className={`font-semibold text-lg ${textMain}`}>Tabel Data</div>
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleCSVUpload}
+      {/* Filter Dropdown */}
+      <div className="flex flex-wrap gap-4 mb-4 items-end">
+        {/* Sector */}
+        <div className="flex flex-col min-w-[140px]">
+          <label className="text-xs text-gray-400 mb-1 font-medium">Sector</label>
+          <Select
+            options={sectorOptions}
+            value={selectedSector}
+            onChange={v => { setSelectedSector(v); setPage(1); }}
+            isClearable
+            isSearchable
+            placeholder="Cari Sector…"
+            styles={customSelectStyles(theme)}
+            classNamePrefix="react-select"
+            noOptionsMessage={() => "Tidak ada sector"}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-purple-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-purple-700 transition"
-          >
-            Upload CSV
-          </button>
         </div>
-      </div>
-
-      {/* Filter Area */}
-      <div className="flex flex-wrap gap-3 mb-4 items-end">
-        {/* Nama+Site ID dropdown */}
-        <div className="flex flex-col">
-          <label className={`text-xs ${theme === "dark" ? "text-white/60" : "text-gray-500"} mb-1`}>Nama + Site ID</label>
-          <select
+        {/* Site ID */}
+        <div className="flex flex-col min-w-[220px]">
+          <label className="text-xs text-gray-400 mb-1 font-medium">Site ID</label>
+          <Select
+            options={siteOptions}
             value={selectedSite}
-            onChange={e => {
-              setSelectedSite(e.target.value)
-              setPage(1)
-            }}
-            className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-white/10 text-white border-white/15" : "bg-white text-gray-900 border-gray-200"}`}
-          >
-            <option value="">Semua</option>
-            {sites.map((s, idx) => (
-              <option key={idx} value={s.enodeb_name + "|" + s.site_ide}>
-                {s.enodeb_name} ({s.site_ide})
-              </option>
-            ))}
-          </select>
+            onChange={v => { setSelectedSite(v); setPage(1); }}
+            isClearable
+            isSearchable
+            placeholder="Cari Site ID…"
+            styles={customSelectStyles(theme)}
+            classNamePrefix="react-select"
+            noOptionsMessage={() => "Tidak ada Site ID"}
+          />
         </div>
         {/* Periode */}
-        <div className="flex flex-col">
-          <label className={`text-xs ${theme === "dark" ? "text-white/60" : "text-gray-500"} mb-1`}>Periode</label>
+        <div className="flex flex-col min-w-[120px]">
+          <label className="text-xs text-gray-400 mb-1 font-medium">Periode</label>
           <select
-            value={dateType}
-            onChange={e => {
-              setDateType(e.target.value)
-              setPage(1)
-            }}
-            className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-white/10 text-white border-white/15" : "bg-white text-gray-900 border-gray-200"}`}
+            value={range}
+            onChange={e => { setRange(e.target.value); setPage(1); }}
+            className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-[#232336] text-white border-[#3e4057]" : "bg-white text-gray-900 border-gray-200"}`}
           >
             <option value="all">All Time</option>
-            <option value="week">Mingguan</option>
-            <option value="month">Bulanan</option>
-            <option value="year">Tahunan</option>
+            <option value="weekly">Mingguan</option>
+            <option value="monthly">Bulanan</option>
+            <option value="yearly">Tahunan</option>
             <option value="custom">Custom</option>
           </select>
         </div>
-        {dateType === "custom" && (
+        {/* Custom Range */}
+        {range === "custom" && (
           <>
             <div className="flex flex-col">
-              <label className={`text-xs ${theme === "dark" ? "text-white/60" : "text-gray-500"} mb-1`}>Dari</label>
+              <label className="text-xs text-gray-400 mb-1 font-medium">Dari</label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
-                className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-white/10 text-white border-white/15" : "bg-white text-gray-900 border-gray-200"}`}
+                className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-[#232336] text-white border-[#3e4057]" : "bg-white text-gray-900 border-gray-200"}`}
               />
             </div>
             <div className="flex flex-col">
-              <label className={`text-xs ${theme === "dark" ? "text-white/60" : "text-gray-500"} mb-1`}>Sampai</label>
+              <label className="text-xs text-gray-400 mb-1 font-medium">Sampai</label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
-                className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-white/10 text-white border-white/15" : "bg-white text-gray-900 border-gray-200"}`}
+                className={`px-3 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 ${theme === "dark" ? "bg-[#232336] text-white border-[#3e4057]" : "bg-white text-gray-900 border-gray-200"}`}
               />
             </div>
           </>
         )}
+        {/* Reset */}
         <button
           onClick={resetFilter}
-          className={`rounded-lg px-3 py-2 text-sm font-medium hover:bg-gray-900 transition ml-2 mt-4 md:mt-0 ${theme === "dark" ? "bg-white/10 text-white" : "bg-gray-300 text-gray-800 hover:bg-gray-500"}`}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${theme === "dark"
+            ? "bg-[#393955] text-white hover:bg-[#43437c]"
+            : "bg-gray-200 text-gray-800 hover:bg-gray-400"}`}
           type="button"
         >
           Reset
@@ -266,67 +293,50 @@ export default function DetailDataCard({
       </div>
 
       {/* Table */}
-      <div className={`overflow-x-auto rounded-xl border ${theme === "dark" ? "border-white/10" : "border-gray-200"}`}>
+      <div className={`overflow-x-auto rounded-xl border ${theme === "dark" ? "border-[#393955]" : "border-gray-200"}`}>
         <table className={`min-w-full text-sm ${textMain}`}>
           <thead>
             <tr className={tableBg}>
-              <th className="p-2">ID</th>
               <th className="p-2">Tanggal</th>
+              <th className="p-2">Jam</th>
               <th className="p-2">eNodeB Name</th>
+              <th className="p-2">Cell Name</th>
               <th className="p-2">Traffic (GB)</th>
-              <th className="p-2">RRC User</th>
-              <th className="p-2">Availability</th>
-              <th className="p-2">AbnormRel TNL</th>
-              <th className="p-2">Last TTI</th>
+              <th className="p-2">User</th>
+              <th className="p-2">CQI</th>
               <th className="p-2">Site ID</th>
-              <th className="p-2">Aksi</th>
+              <th className="p-2">Sector</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={10} className="text-center p-8">
+                <td colSpan={9} className="text-center p-8">
                   Loading...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center p-8">
+                <td colSpan={9} className="text-center p-8">
                   Data kosong
                 </td>
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={i} className={`hover:bg-white/10 transition cursor-pointer`}>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.id}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>
-                    {row.date ? new Date(row.date).toLocaleDateString("id-ID") : ""}
-                  </td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.enodeb_name}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.ioh_4g_total_traffic_gb}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.ioh_rrc_connected_user}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.ioh_4g_availability_auto}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.l_e_rab_abnormrel_tnl}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.ioh_last_tti}</td>
-                  <td className="p-2" onClick={() => setShowDetail(row)}>{row.site_ide}</td>
-                  <td className="p-2">
-                    <input
-                      ref={el => { perDataFileRef.current[i] = el!; }}
-                      type="file"
-                      accept=".csv"
-                      className="hidden"
-                      onChange={e => handleUploadPerData(i, e)}
-                    />
-                    <button
-                      onClick={() => {
-                        setShowUploadIdx(i)
-                        perDataFileRef.current[i]?.click()
-                      }}
-                      className="bg-purple-500 hover:bg-purple-700 text-white px-3 py-1 rounded-md text-xs"
-                    >
-                      Upload CSV
-                    </button>
-                  </td>
+                <tr
+                  key={i}
+                  className={`hover:bg-white/10 transition cursor-pointer`}
+                  onClick={() => setShowDetail(row)}
+                >
+                  <td className="p-2">{row.Date ? new Date(row.Date).toLocaleDateString("id-ID") : ""}</td>
+                  <td className="p-2">{row.Time}</td>
+                  <td className="p-2">{row["eNodeB Name"]}</td>
+                  <td className="p-2">{row["Cell Name"]}</td>
+                  <td className="p-2">{row["Traffic GB"]}</td>
+                  <td className="p-2">{row.User}</td>
+                  <td className="p-2">{row.CQI}</td>
+                  <td className="p-2">{row["Site ID"]}</td>
+                  <td className="p-2">{row.Sector}</td>
                 </tr>
               ))
             )}
@@ -361,7 +371,6 @@ export default function DetailDataCard({
             disabled={page === pageCount}
             className="px-3 py-1 rounded-lg text-sm font-medium bg-white/20 text-white hover:bg-purple-600/60 disabled:opacity-40"
           >Next</button>
-          {/* Goto page input */}
           <form onSubmit={handleGotoPage} className="ml-2 flex items-center">
             <input
               type="number"
@@ -381,5 +390,5 @@ export default function DetailDataCard({
         </div>
       </div>
     </div>
-  )
+  );
 }

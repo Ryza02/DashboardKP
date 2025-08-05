@@ -129,14 +129,6 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.13);
 }
-.light .glass {
-  background: #fff !important;   /* FULL PUTIH, no opacity, biar bener2 cerah */
-  border: 1px solid #e5e8ee !important;
-  box-shadow: 0 4px 24px 0 rgba(178,178,212,0.13);
-  /* Opsional: hilangkan backdrop-blur di light mode */
-  backdrop-filter: none !important;
-}
-
 
 
 /* Animation for theme transitions */

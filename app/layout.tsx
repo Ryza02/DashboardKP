@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { FilterProvider } from "@/components/filter-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,7 +27,9 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider defaultTheme="dark" storageKey="vision-ui-theme">
-          {children}
+          <FilterProvider>
+            {children}
+          </FilterProvider>
         </ThemeProvider>
       </body>
     </html>

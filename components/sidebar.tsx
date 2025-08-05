@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Table, CreditCard, Globe, User, LogIn, UserPlus, X } from "lucide-react"
+import { Home, Table, UsersRound, Globe, User, LogIn, UserPlus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "./theme-provider"
 import { useEffect } from "react"
@@ -10,7 +10,7 @@ import { useEffect } from "react"
 const navigation = [
   { name: "Dashboard", icon: Home, href: "/dashboard" },
   { name: "Table", icon: Table, href: "/table" },
-  { name: "Billing", icon: CreditCard, href: "/billing" },
+  { name: "Chat", icon: UsersRound, href: "/chatuser" },
   { name: "RTL", icon: Globe, href: "/rtl" },
 ]
 const accountPages = [
@@ -120,7 +120,7 @@ export default function Sidebar({ open, setOpen }: { open: boolean, setOpen: (op
             </div>
           </div>
         </nav>
-        <div className="py-4 text-center text-xs text-gray-400">© 2025</div>
+        <div className="py-4 text-center text-xs text-gray-400">IOH ©2025</div>
       </aside>
     </>
   )

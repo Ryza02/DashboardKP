@@ -10,16 +10,28 @@ export async function GET(request: NextRequest) {
     port: Number(process.env.DB_PORT || 3306),
   });
 
+  // Ambil bulan & tahun terakhir yang ada di tabel
+  const [maxDateRows] = await db.query(
+    "SELECT MONTH(MAX(`Date`)) AS last_month, YEAR(MAX(`Date`)) AS last_year FROM traffic_data"
+  ) as any[];
+
+  const lastDate = Array.isArray(maxDateRows) && maxDateRows.length > 0 ? maxDateRows[0] : null;
+  const last_month = lastDate?.last_month ?? (new Date().getMonth() + 1);
+  const last_year = lastDate?.last_year ?? new Date().getFullYear();
+
+  // Query lowest availability
   const [rows] = await db.query(
     `
-    SELECT enodeb_name, AVG(ioh_4g_availability_auto) as avg_avail
-    FROM ioh_traffic
-    WHERE MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-    GROUP BY enodeb_name
+    SELECT \`eNodeB Name\` as enodeb_name, AVG(\`IOH_4G Cell Availability (%)\`) as avg_avail
+    FROM traffic_data
+    WHERE MONTH(\`Date\`) = ? AND YEAR(\`Date\`) = ?
+    GROUP BY \`eNodeB Name\`
     ORDER BY avg_avail ASC
     LIMIT 5
-    `
-  );
+    `,
+    [last_month, last_year]
+  ) as any[];
+
   await db.end();
 
   return Response.json(rows);
